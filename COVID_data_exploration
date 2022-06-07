@@ -1,0 +1,91 @@
+--1.1Ran query to ensure dataset worked
+select *
+from `lively-iris-334420.data_exploration_sql.covid_vaccinations`
+order by 3, 4
+
+
+
+--1.2 SelectingData
+select location, date, total_cases, new_cases, total_deaths, population
+from `lively-iris-334420.data_exploration_sql.covid_deaths`
+order by 1, 2
+---- ordered by location and date
+
+--1.3DeathRateUnitedStates
+select location, date, total_cases, total_deaths, (total_deaths/total_cases)*100 as DeathPercentage
+from `lively-iris-334420.data_exploration_sql.covid_deaths`
+where location = 'United States'
+order by 2 desc
+
+--1.4InfectiionRate
+select location, date, total_cases, population, (total_cases/population)*100 as InfectionRate
+from `lively-iris-334420.data_exploration_sql.covid_deaths`
+where date = '2022-05-11'
+order by 2 desc
+----sidenote: many people have contracted covid multiple times by this time
+----additionally countries have different access and opportunities for testing
+
+--1.5MaxInfectionRates
+select location, population, max(total_cases) as HighestInfectionCount, max((total_cases/population))*100 as PercentPopulationInfected
+from `lively-iris-334420.data_exploration_sql.covid_deaths`
+group by location, population
+order by PercentPopulationInfected desc
+----notice that many of the top travel/tourist locations have large rate
+
+--1.6DeathPercentageByPopulation
+select location, population, max(total_deaths) as DeathCount, max((total_deaths/population))*100 as DeathPercentByPopulation
+from `lively-iris-334420.data_exploration_sql.covid_deaths`
+where continent is not null
+----to remove groups in location such as 'Asia' or 'South America'
+group by location, population
+order by DeathPercentByPopulation desc
+
+--1.7ContinentalDeathCount showing continents with highest death counts
+select location, continent, max(cast(total_deaths as int)) as TotalDeathCount
+from `lively-iris-334420.data_exploration_sql.covid_deaths`
+where continent is null
+group by location, continent
+order by TotalDeathCount desc
+
+--1.8WorldDailyCasesAndDeaths
+select date, sum(new_cases) as sum_of_daily_cases, sum(cast(new_deaths as int)) as sum_of_daily_deaths, sum(cast(new_deaths as int))/sum(new_cases)*100 as death_percentage
+from `lively-iris-334420.data_exploration_sql.covid_deaths`
+where continent is not null and new_cases is not null and new_deaths is not null
+group by date
+order by 1,2 
+
+--1.9Unfinished, looking at total population vs vaccinations
+select dea.continent, dea.location, dea.date, dea.population, vac.new_vaccinations
+  , sum(cast(vac.new_vaccinations as int)) over (partition by dea.location order by dea.location, dea.date) as RollingPeopleVaccinated
+  , (RollingPeopleVaccinated/population)*100
+from `lively-iris-334420.data_exploration_sql.covid_deaths` dea
+join `lively-iris-334420.data_exploration_sql.covid_vaccinations` vac
+  on dea.location = vac.location
+  and dea.date = vac.date
+where dea.continent is not null
+order by 2,3
+
+--1.10
+drop table if exists #PercentPopulationVaccinated
+create table #PercentPopulationVaccinated
+( 
+continent nvarchar(255)
+, location nvarchar(255)
+, date datetime
+, population numeric
+, new_vaccinations numeric
+, RollingPeopleVaccinatednumeric
+)
+insert into #PercentPopulationVaccinated
+select dea.continent, dea.location, dea.date, dea.population, vac.new_vaccinations
+  , sum(convert(int,vac.new_vaccinations)) over (partition by dea.location order by dea.location, dea.date) as RollingPeopleVaccinated
+
+from `lively-iris-334420.data_exploration_sql.covid_deaths` dea
+join `lively-iris-334420.data_exploration_sql.covid_vaccinations` vac
+  on dea.location = vac.location
+  and dea.date = vac.date
+--where dea.continent is not null
+
+)
+select *, (RollingPeopleVaccinated/population)*100
+from #PercentPopulationVaccinated
