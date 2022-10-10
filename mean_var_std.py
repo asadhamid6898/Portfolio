@@ -1,4 +1,3 @@
-import pandas as pd
 import numpy as np
 
 def calc_req():
@@ -23,6 +22,3 @@ def calculate():
 
 calculate()
 
-
-
-#calculate()
